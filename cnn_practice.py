@@ -12,7 +12,7 @@ start_time = time.time()
 device = T.device('cuda' if T.cuda.is_available() else 'cpu')
 # device = T.device('cpu')
 num_epochs = 10
-batch_size = 4
+batch_size = 6
 lr = 0.001
 
 # input_size = 28*28

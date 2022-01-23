@@ -57,7 +57,7 @@ inputs, classes = next(iter(dataloaders['train']))
 # Make a grid from batch
 out = torchvision.utils.make_grid(inputs)
 
-imshow(out, title=[class_names[x] for x in classes])
+# imshow(out, title=[class_names[x] for x in classes])
 
 def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     since = time.time()
@@ -129,55 +129,18 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
 
 #### Finetuning the convnet ####
 # Load a pretrained model and reset final fully connected layer.
-
 model = models.resnet18(pretrained=True)
-num_ftrs = model.fc.in_features
-# Here the size of each output sample is set to 2.
-# Alternatively, it can be generalized to nn.Linear(num_ftrs, len(class_names)).
-model.fc = nn.Linear(num_ftrs, 2)
+for params in model.parameters():
+    params.requires_grad = False
+in_ftrs = model.fc.in_features
 
-model = model.to(device)
-
-criterion = nn.CrossEntropyLoss()
-
-# Observe that all parameters are being optimized
-optimizer = optim.SGD(model.parameters(), lr=0.001)
-
-# StepLR Decays the learning rate of each parameter group by gamma every step_size epochs
-# Decay LR by a factor of 0.1 every 7 epochs
-# Learning rate scheduling should be applied after optimizer’s update
-# e.g., you should write your code this way:
-# for epoch in range(100):
-#     train(...)
-#     validate(...)
-#     scheduler.step()
-
-step_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=7, gamma=0.1)
-
-model = train_model(model, criterion, optimizer, step_lr_scheduler, num_epochs=25)
-
-
-#### ConvNet as fixed feature extractor ####
-# Here, we need to freeze all the network except the final layer.
-# We need to set requires_grad == False to freeze the parameters so that the gradients are not computed in backward()
-model_conv = torchvision.models.resnet18(pretrained=True)
-for param in model_conv.parameters():
-    param.requires_grad = False
-
-# Parameters of newly constructed modules have requires_grad=True by default
-num_ftrs = model_conv.fc.in_features
-model_conv.fc = nn.Linear(num_ftrs, 2)
-
-model_conv = model_conv.to(device)
+model.fc = nn.Linear(in_ftrs, 2)
+model.to(device)
 
 criterion = nn.CrossEntropyLoss()
+optimiser = torch.optim.SGD(model.parameters(), lr=0.001)
 
-# Observe that only parameters of final layer are being optimized as
-# opposed to before.
-optimizer_conv = optim.SGD(model_conv.fc.parameters(), lr=0.001, momentum=0.9)
+# Scheduler
+step_lr_scheduler = lr_scheduler.StepLR(optimiser, step_size=7, gamma=0.1)
 
-# Decay LR by a factor of 0.1 every 7 epochs
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
-
-model_conv = train_model(model_conv, criterion, optimizer_conv,
-                         exp_lr_scheduler, num_epochs=25)
+model = train_model(model, criterion, optimiser, step_lr_scheduler, num_epochs=20)
